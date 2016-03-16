@@ -49,7 +49,96 @@ For more API documentation and examples see [Azure AD Cordova Getting Started](h
   * iOS
   * Windows (Windows 8.0, Windows 8.1, Windows 10 and Windows Phone 8.1)
 
+## Creating new AuthenticationContext
+
+The `Microsoft.ADAL.AuthenticationContext` class retrieves authentication tokens from Azure Active Directory and ADFS services.
+Use `AuthenticationContext` constructor to synchronously create a new `AuthenticationContext` object.
+
+#### Parameters
+- __authority__: Authority url to send code and token requests. _(String)_ [Required]
+- __validateAuthority__: Validate authority before sending token request. _(Boolean)_ (Default: `true`) [Optional]
+
+#### Example
+    var authContext = new Microsoft.ADAL.AuthenticationContext("https://login.windows.net/common"); 
+
+## AuthenticationContext methods and properties
+- acquireTokenAsync
+- acquireTokenSilentAsync
+- tokenCache
+
+### acquireTokenAsync
+The `AuthenticationContext.acquireTokenAsync` method asynchronously acquires token using interactive flow.
+It **always shows UI** and skips token from cache.
+
+- __resourceUrl__: Resource identifier. _(String)_ [Required]
+- __clientId__: Client (application) identifier. _(String)_ [Required]
+- __redirectUrl__: Redirect url for this application. _(String)_ [Required]
+- __userId__: User identifier. _(String)_ [Optional]
+- __extraQueryParameters__: Extra query parameters. Parameters should be escaped before passing to this method (e.g. using 'encodeURI()') _(String)_ [Optional]
+
+__Note__: Those with experience in using native ADAL libraries should pay attention as the plugin uses `PromptBehaviour.Always`
+when calling `AcquireToken` method and native libraries use `PromptBehaviour.Auto` by default. As a result
+the plugin does not check the cache for existing access or refresh token. This is special design decision
+so that `AcquireToken` is always showing a UX and `AcquireTokenSilent` never does so.
+
+#### Example
+```
+var authContext = new Microsoft.ADAL.AuthenticationContext("https://login.windows.net/common");
+authContext.acquireTokenAsync("https://graph.windows.net", "a5d92493-ae5a-4a9f-bcbf-9f1d354067d3", "http://MyDirectorySearcherApp")
+  .then(function(authResponse) {
+    console.log("Token acquired: " + authResponse.accessToken);
+    console.log("Token will expire on: " + authResponse.expiresOn);
+  }, function(err) {
+    console.log("Failed to authenticate: " + err);
+  });
+```
+
+### acquireTokenSilentAsync
+The `AuthenticationContext.acquireTokenSilentAsync` method acquires token WITHOUT using interactive flow.
+It checks the cache to return existing result if not expired. It tries to use refresh token if available.
+If it fails to get token withoutd isplaying UI it will fail. This method guarantees that no UI will be shown to user.
+
+- __resourceUrl__: Resource identifier. _(String)_ [Required]
+- __clientId__: Client (application) identifier. _(String)_ [Required]
+- __userId__: User identifier. _(String)_ [Optional]
+
+#### Example
+```
+var authContext = new Microsoft.ADAL.AuthenticationContext("https://login.windows.net/common");
+authContext.acquireTokenSilentAsync("https://graph.windows.net", "a5d92493-ae5a-4a9f-bcbf-9f1d354067d3")
+  .then(function(authResponse) {
+    console.log("Token acquired: " + authResponse.accessToken);
+    console.log("Token will expire on: " + authResponse.expiresOn);
+  }, function(err) {
+    console.log("Failed to authenticate: " + err);
+  });
+```
+
+### tokenCache
+The `AuthenticationContext.tokenCache` property returns `TokenCache` class instance which stores access and refresh tokens.
+This class could be used to retrieve cached items (`readItems` method), remove specific (`deleteItem` method) or all items (`clear` method).
+
+#### Example
+```
+var authContext = new Microsoft.ADAL.AuthenticationContext("https://login.windows.net/common");
+authContext.tokenCache.readItems().then(function (items) {
+  console.log("Num cached items: " + items.length);
+});
+```
+
 ## Known issues and workarounds
+
+## How to sign out
+
+Similar to native labraries the plugin does not provide special method to sign out as it depends on server/application logic.
+The recomendation here is
+
+1. Step1: clear cache
+
+    var authContext = new Microsoft.ADAL.AuthenticationContext("https://login.windows.net/common");
+    authContext.tokenCache.clear();
+1. Step2: make `XmlHttpRequest` (or open InAppBrowser instance) pointing to the sign out url.
+In most cases the url should look like the following: `https://login.windows.net/{tenantid or "common"}/oauth2/logout?post_logout_redirect_uri={URL}`
 
 ## 'Class not registered' error on Windows
 
